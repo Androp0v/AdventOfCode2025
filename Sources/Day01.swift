@@ -91,29 +91,6 @@ struct Day01: AdventDay {
             position: currentPosition,
             clicksThroughZero: clicksThroughZero
         )
-        /*
-        let tempResult = switch rotation {
-        case .left(let count):
-            initialValue - count
-        case .right(let count):
-            initialValue + count
-        }
-        if tempResult < 0 {
-            return RotationResult(
-                position: ((tempResult % 100) + 100) % 100,
-                clicksThroughZero: abs(tempResult / 100)
-            )
-        } else if tempResult > 99 {
-            return RotationResult(
-                position: tempResult % 100,
-                clicksThroughZero: tempResult / 100
-            )
-        }
-        return RotationResult(
-            position: tempResult,
-            clicksThroughZero: 0
-        )
-        */
     }
 
     func part1() -> Any {
