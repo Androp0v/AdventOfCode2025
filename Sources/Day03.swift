@@ -45,46 +45,53 @@ struct Day03: AdventDay {
     }
 
     struct CacheableInput: Hashable {
-        let batteryBank: [Int]
+        let currentIndex: Int
         let maxEnabledBatteries: Int
     }
 
     func findHighestJoltage(
         in batteryBank: [Int],
+        currentIndex: Int,
         maxEnabledBatteries: Int,
         cache: inout [CacheableInput: Int]
     ) -> Int {
-        let input = CacheableInput(batteryBank: batteryBank, maxEnabledBatteries: maxEnabledBatteries)
+        let input = CacheableInput(
+            currentIndex: currentIndex,
+            maxEnabledBatteries: maxEnabledBatteries
+        )
         if let cachedResult = cache[input] {
             return cachedResult
         }
 
-        var results = [Int]()
+        var results = InlineArray<2, Int>(repeating: .zero)
         for enableCurrent in [true, false] {
             switch enableCurrent {
             case true:
                 if maxEnabledBatteries == 1 {
-                    results.append(batteryBank.first!)
+                    results[0] = batteryBank[currentIndex]
                 } else {
                     let subsequenceResult = findHighestJoltage(
-                        in: Array(batteryBank.dropFirst()),
+                        in: batteryBank,
+                        currentIndex: currentIndex + 1,
                         maxEnabledBatteries: maxEnabledBatteries - 1,
                         cache: &cache
                     )
-                    results.append(Int("\(batteryBank.first!)\(subsequenceResult)")!)
+                    results[0] = Int("\(batteryBank[currentIndex])\(subsequenceResult)")!
                 }
             case false:
-                guard batteryBank.dropFirst().count >= maxEnabledBatteries else {
+                let remainingBatteries = (batteryBank.count - 1) - currentIndex
+                guard remainingBatteries >= maxEnabledBatteries else {
                     continue
                 }
-                results.append(findHighestJoltage(
-                    in: Array(batteryBank.dropFirst()),
+                results[1] = findHighestJoltage(
+                    in: batteryBank,
+                    currentIndex: currentIndex + 1,
                     maxEnabledBatteries: maxEnabledBatteries,
                     cache: &cache
-                ))
+                )
             }
         }
-        let result = results.max()!
+        let result = max(results[0], results[1])
         cache[input] = result
         return result
     }
@@ -95,6 +102,7 @@ struct Day03: AdventDay {
             var cache = [CacheableInput: Int]()
             result += findHighestJoltage(
                 in: battery,
+                currentIndex: 0,
                 maxEnabledBatteries: 12,
                 cache: &cache
             )
