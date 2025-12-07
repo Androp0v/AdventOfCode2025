@@ -117,47 +117,37 @@ struct Day07: AdventDay {
             return 1
         }
 
-        let cacheableEntry = CacheableEntry(
-            beamPosition: beamPosition,
-            at: currentLineIndex,
-        )
-        if let cachedResult = cache[cacheableEntry] {
-            return cachedResult
-        }
-
         let beamHit = manifold.contents[currentLineIndex][beamPosition]
 
         switch beamHit {
         case .empty:
-            let timelines = countTimelines(
+            return countTimelines(
                 in: manifold,
                 currentLineIndex: currentLineIndex + 1,
                 beamPosition: beamPosition,
                 cache: &cache
             )
-            let newCacheableEntry = CacheableEntry(
-                beamPosition: beamPosition,
-                at: currentLineIndex + 1
-            )
-            cache[newCacheableEntry] = timelines
-            return timelines
         case .splitter:
-            var totalTimelines = 0
-            for newBeamPosition in [beamPosition - 1, beamPosition + 1] {
-                let timelines = countTimelines(
-                    in: manifold,
-                    currentLineIndex: currentLineIndex + 1,
-                    beamPosition: newBeamPosition,
-                    cache: &cache
-                )
-                let cacheableEntry = CacheableEntry(
-                    beamPosition: newBeamPosition,
-                    at: currentLineIndex + 1
-                )
-                cache[cacheableEntry] = timelines
-                totalTimelines += timelines
+            let cacheableEntry = CacheableEntry(
+                beamPosition: beamPosition,
+                at: currentLineIndex,
+            )
+            if let cachedResult = cache[cacheableEntry] {
+                return cachedResult
+            } else {
+                var totalTimelines = 0
+                for newBeamPosition in [beamPosition - 1, beamPosition + 1] {
+                    let timelines = countTimelines(
+                        in: manifold,
+                        currentLineIndex: currentLineIndex + 1,
+                        beamPosition: newBeamPosition,
+                        cache: &cache
+                    )
+                    totalTimelines += timelines
+                }
+                cache[cacheableEntry] = totalTimelines
+                return totalTimelines
             }
-            return totalTimelines
         case .startPosition:
             return countTimelines(
                 in: manifold,
@@ -172,21 +162,18 @@ struct Day07: AdventDay {
 
     func part2() -> Any {
         var cache = [CacheableEntry: Int]()
-
         var beamPosition = 0
         for j in 0..<manifold.contents[0].count {
             if manifold.contents[0][j] == .startPosition {
                 beamPosition = j
             }
         }
-        print("Beam starts at j = \(beamPosition)")
 
-        let timelines = countTimelines(
+        return countTimelines(
             in: manifold,
             currentLineIndex: 1,
             beamPosition: beamPosition,
             cache: &cache
         )
-        return timelines
     }
 }
