@@ -6,6 +6,7 @@
 //
 
 import Algorithms
+import Collections
 import simd
 
 struct Day08: AdventDay {
@@ -27,34 +28,38 @@ struct Day08: AdventDay {
         self.positions = positions
     }
 
-    struct Connection {
+    struct Connection: Comparable {
         let distance: Double
         let boxA: simd_double3
         let boxB: simd_double3
+
+        static func < (lhs: Day08.Connection, rhs: Day08.Connection) -> Bool {
+            return lhs.distance < rhs.distance
+        }
     }
 
-    func findConnections(in positions: [simd_double3]) -> [Connection] {
-        var connections = [Connection]()
+    func findConnections(in positions: [simd_double3]) -> Heap<Connection> {
+        var connections = Heap<Connection>()
         for i in 0..<positions.count {
             for j in i..<positions.count {
                 guard i != j else { continue }
                 let distance = simd_distance(positions[i], positions[j])
-                connections.append(Connection(
+                connections.insert(Connection(
                     distance: distance,
                     boxA: positions[i],
                     boxB: positions[j])
                 )
             }
         }
-
-        return connections.sorted(by: { $0.distance < $1.distance })
+        return connections
     }
 
     func part1() -> Any {
-        let connections = findConnections(in: positions).prefix(1000)
+        var connections = findConnections(in: positions)
 
         var junctionBoxSubgraphs = Set<Set<simd_double3>>()
-        for connection in connections {
+        for _ in 0..<1000 {
+            let connection = connections.popMin()!
             connectJunctionBoxes(
                 connection: connection,
                 subgraphs: &junctionBoxSubgraphs
@@ -118,9 +123,10 @@ struct Day08: AdventDay {
     }
 
     func part2() -> Any {
-        let connections = findConnections(in: positions)
+        var connections = findConnections(in: positions)
         var subgraphs = Set<Set<simd_double3>>()
-        for (index, connection) in connections.enumerated() {
+        for index in 0..<Int.max {
+            let connection = connections.popMin()!
             connectJunctionBoxes(
                 connection: connection,
                 subgraphs: &subgraphs
