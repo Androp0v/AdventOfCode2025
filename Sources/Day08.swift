@@ -33,30 +33,25 @@ struct Day08: AdventDay {
         let boxB: simd_double3
     }
 
-    func findClosestPairs(in positions: [simd_double3], upTo maxLength: Int) -> [Connection] {
-        var distances = [Double: (Int, Int)]()
+    func findConnections(in positions: [simd_double3]) -> [Connection] {
+        var connections = [Connection]()
         for i in 0..<positions.count {
             for j in i..<positions.count {
                 guard i != j else { continue }
                 let distance = simd_distance(positions[i], positions[j])
-                distances[distance] = (i, j)
+                connections.append(Connection(
+                    distance: distance,
+                    boxA: positions[i],
+                    boxB: positions[j])
+                )
             }
         }
 
-        var connections = [Connection]()
-        for distance in distances.keys.sorted().prefix(maxLength) {
-            connections.append(Connection(
-                distance: distance,
-                boxA: positions[distances[distance]!.0],
-                boxB: positions[distances[distance]!.1]
-            ))
-        }
-
-        return connections
+        return connections.sorted(by: { $0.distance < $1.distance })
     }
 
     func part1() -> Any {
-        let connections = findClosestPairs(in: positions, upTo: 1000)
+        let connections = findConnections(in: positions).prefix(1000)
 
         var junctionBoxSubgraphs = Set<Set<simd_double3>>()
         for connection in connections {
@@ -110,57 +105,30 @@ struct Day08: AdventDay {
         }
     }
 
-    func findClosestUnconnectedPair(in positions: [simd_double3], subgraphs: Set<Set<simd_double3>>) -> Connection {
-        var minDistance: Double = .infinity
-        var minPair: (simd_double3, simd_double3)!
-        for i in 0..<positions.count {
-            for j in i..<positions.count {
-                guard i != j else { continue }
-                let isAConnected = subgraphs.contains(where: { $0.contains(positions[i]) })
-                let isBConnected = subgraphs.contains(where: { $0.contains(positions[i]) })
-                guard !isAConnected || !isBConnected else { continue }
-                let distance = simd_distance(positions[i], positions[j])
-                if distance < minDistance {
-                    minDistance = distance
-                    minPair = (positions[i], positions[j])
-                }
+    func isFullyConnected(subgraphs: Set<Set<simd_double3>>, positions: [simd_double3]) -> Bool {
+        guard subgraphs.count == 1 else {
+            return false
+        }
+        for position in positions {
+            guard subgraphs.first!.contains(position) else {
+                return false
             }
         }
-        return Connection(
-            distance: minDistance,
-            boxA: minPair.0,
-            boxB: minPair.1
-        )
-    }
-
-    func totalCircuits(subgraphs: Set<Set<simd_double3>>, positions: [simd_double3]) -> Int {
-        let subCircuits = subgraphs.count
-        let isolated = positions.filter { position in
-            return !subgraphs.contains(where: { subgraph in
-                subgraph.contains(position)
-            })
-        }.count
-        return subCircuits + isolated
+        return true
     }
 
     func part2() -> Any {
-        let connections = findClosestPairs(in: positions, upTo: Int.max)
+        let connections = findConnections(in: positions)
         var subgraphs = Set<Set<simd_double3>>()
-        for connection in connections.prefix(1000) {
+        for (index, connection) in connections.enumerated() {
             connectJunctionBoxes(
                 connection: connection,
                 subgraphs: &subgraphs
             )
-        }
-        for connection in connections.dropFirst(1000) {
-            connectJunctionBoxes(
-                connection: connection,
-                subgraphs: &subgraphs
-            )
-            let circuits = totalCircuits(subgraphs: subgraphs, positions: positions)
-
-            if circuits == 1 {
-                return Int(connection.boxA.x * connection.boxB.x)
+            if index >= 1000 {
+                if isFullyConnected(subgraphs: subgraphs, positions: positions) {
+                    return Int(connection.boxA.x * connection.boxB.x)
+                }
             }
         }
         fatalError("Unreachable, hopefully...")
