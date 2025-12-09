@@ -44,119 +44,45 @@ struct Day09: AdventDay {
         return maxArea
     }
 
-    func paintGreenTilesBetween(tileA: SIMD2<Int>, tileB: SIMD2<Int>, in matrix: inout [[Character]]) {
-        if matrix[tileB.y] == matrix[tileA.y] {
+    func paintGreenTilesBetween(tileA: SIMD2<Int>, tileB: SIMD2<Int>, in floor: Floor) {
+        if tileB.y == tileA.y {
             // Same row
             if tileB.x < tileA.x {
                 for k in (tileB.x + 1)..<tileA.x {
-                    matrix[tileA.y][k] = "#"
+                    floor.paintedTiles.insert(SIMD2<Int>(k, tileA.y))
                 }
             } else if tileB.x > tileA.x {
                 for k in (tileA.x + 1)..<tileB.x {
-                    matrix[tileA.y][k] = "#"
+                    floor.paintedTiles.insert(SIMD2<Int>(k, tileA.y))
                 }
             }
         } else {
             // Same column
             if tileB.y < tileA.y {
                 for k in (tileB.y + 1)..<tileA.y {
-                    matrix[k][tileA.x] = "#"
+                    floor.paintedTiles.insert(SIMD2<Int>(tileA.x, k))
                 }
             } else if tileB.y > tileA.y {
                 for k in (tileA.y + 1)..<tileB.y {
-                    matrix[k][tileA.x] = "#"
+                    floor.paintedTiles.insert(SIMD2<Int>(tileA.x, k))
                 }
             }
         }
     }
 
-    enum Direction: CaseIterable {
-        case left
-        case right
-        case up
-        case down
-    }
+    final class Floor {
+        let width: Int
+        let height: Int
+        var paintedTiles: Set<SIMD2<Int>>
 
-    func isInsidePolygon(_ tile: SIMD2<Int>, matrix: inout [[Character]]) -> Bool {
-        guard matrix[tile.y][tile.x] == "." else {
-            return true
-        }
-        for direction in Direction.allCases {
-            var crossings = 0
-            var current: Character = "."
-            switch direction {
-            case .left:
-                var k = tile.x - 1
-                while true {
-                    guard k >= 0 else { break }
-                    let newCurrent = matrix[tile.y][k]
-                    if newCurrent != current {
-                        crossings += 1
-                        current = newCurrent
-                    }
-                    k -= 1
-                }
-            case .right:
-                var k = tile.x + 1
-                while true {
-                    guard k < matrix[tile.y].count else { break }
-                    let newCurrent = matrix[tile.y][k]
-                    if newCurrent != current {
-                        crossings += 1
-                        current = newCurrent
-                    }
-                    k += 1
-                }
-            case .up:
-                var k = tile.y - 1
-                while true {
-                    guard k >= 0 else { break }
-                    let newCurrent = matrix[k][tile.x]
-                    if newCurrent != current {
-                        crossings += 1
-                        current = newCurrent
-                    }
-                    k -= 1
-                }
-            case .down:
-                var k = tile.y + 1
-                while true {
-                    guard k < matrix.count else { break }
-                    let newCurrent = matrix[k][tile.x]
-                    if newCurrent != current {
-                        crossings += 1
-                        current = newCurrent
-                    }
-                    k += 1
-                }
-            }
-            if crossings == 0 {
-                guard current == "#" else {
-                    return false
-                }
-            }
-            if (crossings/2) % 2 == 0 {
-                return false
-            }
-        }
-        return true
-    }
-
-    func paintGreenTilesInsidePolygon(matrix: inout [[Character]]) {
-        for y in 0..<matrix.count {
-            for x in 0..<matrix[y].count {
-                if isInsidePolygon(SIMD2<Int>(x, y), matrix: &matrix) {
-                    matrix[y][x] = "#"
-                }
-                /*
-                printFloor(matrix)
-                print("\n")
-                 */
-            }
+        init(width: Int, height: Int, paintedTiles: Set<SIMD2<Int>>) {
+            self.width = width
+            self.height = height
+            self.paintedTiles = paintedTiles
         }
     }
 
-    func buildFloor() -> [[Character]] {
+    func buildFloor() -> Floor {
         var tilePositions = tilePositions
         let minX = tilePositions.map(\.x).min()! - 1
         let minY = tilePositions.map(\.y).min()! - 1
@@ -166,42 +92,142 @@ struct Day09: AdventDay {
         let width = tilePositions.map(\.x).max()! + 2
         let height = tilePositions.map(\.y).max()! + 2
 
-        var matrix: [[Character]] = [[Character]](repeating: [Character](repeating: ".", count: width), count: height)
-        matrix[tilePositions[0].y][tilePositions[0].x] = "#"
+        var paintedTiles = Set<SIMD2<Int>>()
+        let floor = Floor(
+            width: width,
+            height: height,
+            paintedTiles: paintedTiles
+        )
+
+        floor.paintedTiles.insert(tilePositions.first!)
+        paintedTiles.insert(SIMD2<Int>(tilePositions[0].x, tilePositions[0].y))
         for i in 1..<tilePositions.count {
             let currentTile = tilePositions[i]
             let previousTile = tilePositions[i - 1]
-            matrix[currentTile.y][currentTile.x] = "#"
+            floor.paintedTiles.insert(currentTile)
             paintGreenTilesBetween(
                 tileA: currentTile,
                 tileB: previousTile,
-                in: &matrix
+                in: floor
             )
         }
         paintGreenTilesBetween(
             tileA: tilePositions.first!,
             tileB: tilePositions.last!,
-            in: &matrix
+            in: floor
         )
 
-        paintGreenTilesInsidePolygon(matrix: &matrix)
+        // paintGreenTilesInsidePolygon(matrix: &matrix)
 
-        return matrix
+        return floor
     }
 
-    func printFloor(_ floor: [[Character]]) {
-        for row in floor {
-            for character in row {
-                print(character, terminator: "")
+    func printFloor(_ floor: Floor) {
+        for y in 0..<floor.height {
+            for x in 0..<floor.width {
+                let tile = SIMD2<Int>(x, y)
+                if floor.paintedTiles.contains(tile) {
+                    print("#", terminator: "")
+                } else {
+                    print(".", terminator: "")
+                }
             }
             print("\n", terminator: "")
+        }
+    }
+
+    enum Direction: CaseIterable {
+        case up
+        case down
+        case left
+        case right
+    }
+
+    func flood(from tile: SIMD2<Int>, in floor: Floor) {
+        var activeTiles = Set<SIMD2<Int>>()
+        activeTiles.insert(tile)
+
+        while !activeTiles.isEmpty {
+            var newActiveTiles = Set<SIMD2<Int>>()
+            for tile in activeTiles {
+                guard !floor.paintedTiles.contains(tile) else {
+                    continue
+                }
+                floor.paintedTiles.insert(tile)
+
+                for direction in Direction.allCases {
+                    let nextTile = switch direction {
+                    case .up:
+                        SIMD2<Int>(tile.x, tile.y - 1)
+                    case .down:
+                        SIMD2<Int>(tile.x, tile.y + 1)
+                    case .left:
+                        SIMD2<Int>(tile.x - 1, tile.y)
+                    case .right:
+                        SIMD2<Int>(tile.x + 1, tile.y)
+                    }
+                    newActiveTiles.insert(nextTile)
+                }
+            }
+            activeTiles = newActiveTiles
+        }
+    }
+
+    func findSurelyInsideTile(in floor: Floor) -> SIMD2<Int> {
+        var surelyInside: SIMD2<Int>?
+        var minY = Int.max
+        for tile in floor.paintedTiles {
+            if tile.y < minY {
+                let downwardTile = SIMD2(tile.x, tile.y + 1)
+                guard !floor.paintedTiles.contains(downwardTile) else {
+                    continue
+                }
+                minY = tile.y
+                surelyInside = SIMD2(tile.x, tile.y + 1)
+            }
+        }
+        guard let surelyInside else {
+            fatalError()
+        }
+        print("Tile \(surelyInside) must be inside")
+        return surelyInside
+    }
+
+    func findBiggestRectangles(tilePositions: [SIMD2<Int>]) -> Heap<Rectangle> {
+        var rectangles = Heap<Rectangle>()
+        for i in 0..<tilePositions.count {
+            for j in i..<tilePositions.count {
+                guard i != j else { continue }
+                let tileA = tilePositions[i]
+                let tileB = tilePositions[j]
+                let area = getArea(
+                    tileA: tileA,
+                    tileB: tileB
+                )
+                rectangles.insert(Rectangle(
+                    tileA: tileA,
+                    tileB: tileB,
+                    area: area
+                ))
+            }
+        }
+        return rectangles
+    }
+
+    struct Rectangle: Comparable {
+        let tileA: SIMD2<Int>
+        let tileB: SIMD2<Int>
+        let area: Int
+
+        static func < (lhs: Day09.Rectangle, rhs: Day09.Rectangle) -> Bool {
+            lhs.area < rhs.area
         }
     }
 
     func allTilesInsidePolygon(
         tileA: SIMD2<Int>,
         tileB: SIMD2<Int>,
-        floor: inout [[Character]]
+        floor: Floor
     ) -> Bool {
         let minX = min(tileA.x, tileB.x)
         let minY = min(tileA.y, tileB.y)
@@ -210,38 +236,48 @@ struct Day09: AdventDay {
 
         for y in minY...maxY {
             for x in minX...maxX {
-                guard isInsidePolygon(SIMD2(x, y), matrix: &floor) else {
+                let tile = SIMD2<Int>(x, y)
+                guard floor.paintedTiles.contains(tile) else {
                     return false
                 }
             }
         }
-
         return true
     }
 
+
     func part2() -> Any {
-        var floor = buildFloor()
+        let floor = buildFloor()
+
         // printFloor(floor)
-        var maxArea: Int = 0
-        for i in 0..<tilePositions.count {
-            for j in i..<tilePositions.count {
-                guard i != j else { continue }
-                let area = getArea(
-                    tileA: tilePositions[i],
-                    tileB: tilePositions[j]
-                )
-                if area > maxArea {
-                    guard allTilesInsidePolygon(
-                        tileA: tilePositions[i],
-                        tileB: tilePositions[j],
-                        floor: &floor
-                    ) else {
-                        continue
-                    }
-                    maxArea = area
-                }
+
+        let surelyInside = findSurelyInsideTile(in: floor)
+
+        flood(from: surelyInside, in: floor)
+
+        print("Flood complete, \(floor.paintedTiles.count) tiles painted")
+
+        // printFloor(floor)
+
+        var rectangles = findBiggestRectangles(
+            tilePositions: tilePositions
+        )
+
+        var k = 1
+        let originalRectangleCount = rectangles.count
+        while true {
+            let rectangle = rectangles.popMax()!
+            print("Trying rectangle \(k) of \(originalRectangleCount): \(rectangle)")
+            if allTilesInsidePolygon(
+                tileA: rectangle.tileA,
+                tileB: rectangle.tileB,
+                floor: floor,
+            ) {
+                return rectangle.area
             }
+            k += 1
         }
-        return maxArea
+
+        fatalError("Unreachable")
     }
 }
