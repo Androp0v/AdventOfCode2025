@@ -32,6 +32,8 @@ public struct Day11: AdventDay {
         }
     }
 
+    // MARK: - Init
+
     public init(data: String) {
         var graphs = Set<GraphNode>()
         for rawLine in data.split(separator: "\n") {
@@ -60,6 +62,8 @@ public struct Day11: AdventDay {
         self.graphs = graphs
     }
 
+    // MARK: - Part 1
+
     func findAllPathsOut(from node: GraphNode) -> Int {
         guard !node.hasOutput else {
             return 1
@@ -79,18 +83,107 @@ public struct Day11: AdventDay {
         return findAllPathsOut(from: initialNode)
     }
 
-    /*
-    func findAllPaths(from currentNode: GraphNode, to finalNode: GraphNode, excluding excludedNode: GraphNode) -> Int {
-        guard !currentNode.connections.contains(finalNode) else {
+    // MARK: - Part 2
+
+    func findAllPathsToDAC(
+        from currentNode: GraphNode,
+        cache: inout [GraphNode: Int]
+    ) -> Int {
+        guard !currentNode.isDAC else {
             return 1
+        }
+        if let cachedValue = cache[currentNode] {
+            return cachedValue
         }
         var total = 0
         for connection in currentNode.connections {
-            guard connection != excludedNode else {
+            guard !connection.isFFT else {
                 continue
             }
-            total += findAllPaths(from: connection, to: finalNode, excluding: excludedNode)
+            total += findAllPathsToDAC(from: connection, cache: &cache)
         }
+        cache[currentNode] = total
+        return total
+    }
+
+    func findAllPathsToFFT(
+        from currentNode: GraphNode,
+        cache: inout [GraphNode: Int]
+    ) -> Int {
+        guard !currentNode.isFFT else {
+            return 1
+        }
+        if let cachedValue = cache[currentNode] {
+            return cachedValue
+        }
+        var total = 0
+        for connection in currentNode.connections {
+            guard !connection.isDAC else {
+                continue
+            }
+            total += findAllPathsToFFT(from: connection, cache: &cache)
+        }
+        cache[currentNode] = total
+        return total
+    }
+
+    func findAllPathsFromDACToFFT(
+        currentNode: GraphNode,
+        cache: inout [GraphNode: Int]
+    ) -> Int {
+        guard !currentNode.isFFT else {
+            return 1
+        }
+        if let cachedValue = cache[currentNode] {
+            return cachedValue
+        }
+        var total = 0
+        for connection in currentNode.connections {
+            total += findAllPathsFromDACToFFT(currentNode: connection, cache: &cache)
+        }
+        cache[currentNode] = total
+        return total
+    }
+
+    func findAllPathsFromFFTToDAC(
+        currentNode: GraphNode,
+        cache: inout [GraphNode: Int]
+    ) -> Int {
+        guard !currentNode.isDAC else {
+            return 1
+        }
+        if let cachedValue = cache[currentNode] {
+            return cachedValue
+        }
+        var total = 0
+        for connection in currentNode.connections {
+            total += findAllPathsFromFFTToDAC(currentNode: connection, cache: &cache)
+        }
+        cache[currentNode] = total
+        return total
+    }
+
+    func findAllPathsOutExcludingDACAndFFT(
+        from node: GraphNode,
+        cache: inout [GraphNode: Int]
+    ) -> Int {
+        guard !node.hasOutput else {
+            return 1
+        }
+        if let cachedValue = cache[node] {
+            return cachedValue
+        }
+        var total = 0
+        for connection in node.connections {
+            guard !connection.isDAC else {
+                continue
+            }
+            guard !connection.isFFT else {
+                continue
+            }
+            total += findAllPathsOutExcludingDACAndFFT(from: connection, cache: &cache)
+        }
+        cache[node] = total
         return total
     }
 
@@ -99,99 +192,34 @@ public struct Day11: AdventDay {
         let dacNode = graphs.first(where: { $0.name == "dac" })!
         let fftNode = graphs.first(where: { $0.name == "fft" })!
 
-        let svrToDAC = findAllPaths(from: initialNode, to: dacNode, excluding: fftNode)
-        print("\(svrToDAC) paths from svr to dac")
-        let svrToFFT = findAllPaths(from: initialNode, to: fftNode, excluding: dacNode)
-        print("\(svrToFFT) paths from svr to fft")
-        let dacOut = findAllPathsOut(from: dacNode)
-        print("\(dacOut) paths from dac to out")
-        let fftOut = findAllPathsOut(from: fftNode)
-        print("\(fftOut) paths from fft to out")
+        // Paths from SVR to DAC
+        var svrToDACCache = [GraphNode: Int]()
+        let svrToDAC = findAllPathsToDAC(from: initialNode, cache: &svrToDACCache)
 
-        return 0
-    }
-     */
+        // Paths from SVR to FFT
+        var svrToFFTCache = [GraphNode: Int]()
+        let svrToFFT = findAllPathsToFFT(from: initialNode, cache: &svrToFFTCache)
 
-    func findValidPathsOut(
-        from node: GraphNode,
-        currentPath: [String],
-        validPaths: inout [[String]]
-    ) {
-        var currentPath = currentPath
-        currentPath.append(node.name)
+        // Paths from DAC to FFT
+        var dacToFFTCache = [GraphNode: Int]()
+        let dacToFFT = findAllPathsFromDACToFFT(currentNode: dacNode, cache: &dacToFFTCache)
 
-        guard !node.hasOutput else {
-            if currentPath.contains("dac") && currentPath.contains("fft") {
-                validPaths.append(currentPath)
-            }
-            return
-        }
-        for connection in node.connections {
-            findValidPathsOut(
-                from: connection,
-                currentPath: currentPath,
-                validPaths: &validPaths
-            )
-        }
-        return
-    }
+        // Paths from FFT to DAC
+        var fftToDACCache = [GraphNode: Int]()
+        let fftToDAC = findAllPathsFromFFTToDAC(currentNode: fftNode, cache: &fftToDACCache)
 
-    func findValidPathsCount(
-        from node: GraphNode,
-        hasVisitedDAC: Bool,
-        hasVisitedFFT: Bool,
-        depth: Int
-    ) async -> Int {
-        guard !node.hasOutput else {
-            if hasVisitedDAC && hasVisitedFFT {
-                print("Found valid path")
-                return 1
-            } else {
-                return 0
-            }
-        }
+        // Paths out
+        var pathsOutCache = [GraphNode: Int]()
+        // Paths from DAC out
+        let dacOut = findAllPathsOutExcludingDACAndFFT(from: dacNode, cache: &pathsOutCache)
+        // Paths from FFT out
+        let fftOut = findAllPathsOutExcludingDACAndFFT(from: fftNode, cache: &pathsOutCache)
 
-        if depth > 2 {
-            var total = 0
-            for connection in node.connections {
-                total += await findValidPathsCount(
-                    from: connection,
-                    hasVisitedDAC: hasVisitedDAC || node.isDAC,
-                    hasVisitedFFT: hasVisitedFFT || node.isFFT,
-                    depth: depth + 1
-                )
-            }
-            return total
-        } else {
-            return await withTaskGroup { taskGroup in
-                for connection in node.connections {
-                    taskGroup.addTask {
-                        return await findValidPathsCount(
-                            from: connection,
-                            hasVisitedDAC: hasVisitedDAC || node.isDAC,
-                            hasVisitedFFT: hasVisitedFFT || node.isFFT,
-                            depth: depth + 1
-                        )
-                    }
-                }
-
-                var total = 0
-                for await partialResult in taskGroup {
-                    total += partialResult
-                }
-                return total
-            }
-        }
-    }
-
-    // Replace this with your solution for the second part of the day's challenge.
-    func part2() async -> Any {
-        let initialNode = graphs.first(where: { $0.name == "svr" })!
-        return await findValidPathsCount(
-            from: initialNode,
-            hasVisitedDAC: false,
-            hasVisitedFFT: false,
-            depth: 0
-        )
+        var total = 0
+        // This combination includes all SVR -> DAC -> FFT -> Out paths
+        total += svrToDAC * dacToFFT * fftOut
+        // And this combination includes all SVR -> FFT -> DAC -> Out paths
+        total += svrToFFT * fftToDAC * dacOut
+        return total
     }
 }
